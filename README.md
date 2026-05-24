@@ -43,7 +43,7 @@ ToFromm is currently in development, in a working POC.
 
 # Roadmap
 * [X] Conflict resolution for save files
-* [ ] Support for save states
 * [ ] Support for more platforms: Retroarch flatpak, Retrodeck, and some standalone emulators
+* [ ] Support for save states
 * [ ] Gtk GUI
 * [ ] Steam Deck plugin

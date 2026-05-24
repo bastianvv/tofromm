@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bastianvv/tofromm/internal/client"
-	"github.com/bastianvv/tofromm/internal/retroarch"
+	"github.com/bastianvv/tofromm/internal/emulator"
 	"github.com/bastianvv/tofromm/internal/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -28,9 +28,14 @@ func init() {
 func runSync(cmd *cobra.Command, args []string) error {
 	c := newClientFromConfig()
 
-	var raCfg retroarch.Config
-	if err := viper.UnmarshalKey("retroarch", &raCfg); err != nil {
-		return fmt.Errorf("Retroarch config not found: %w", err)
+	emulatorKind := viper.GetString("emulator")
+	var emuCfg emulator.Config
+	if err := viper.UnmarshalKey(emulatorKind, &emuCfg); err != nil {
+		return fmt.Errorf("Emulator config not found: %w", err)
+	}
+	emu, err := emulator.New(emulatorKind, emuCfg)
+	if err != nil {
+		return fmt.Errorf("Failed to initialize emulator: %w", err)
 	}
 
 	var platformSlugs []string
@@ -42,7 +47,8 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	hostname, _ := os.Hostname()
-	device, err := c.RegisterDevice(hostname, "Linux")
+	qualifiedHostName := hostname + "-" + emulatorKind
+	device, err := c.RegisterDevice(qualifiedHostName, "Linux", qualifiedHostName)
 	if err != nil {
 		return fmt.Errorf("Failed to register device: %w", err)
 	}
@@ -83,7 +89,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 		romByID[rom.ID] = rom
 	}
 
-	savesDir := retroarch.ExpandPath(raCfg.SavesDir)
+	savesDir := emulator.ExpandPath(emuCfg.SavesDir)
 	localSaves := make([]client.ClientSaveState, 0)
 	savePathByRomID := make(map[int]string)
 
@@ -141,13 +147,13 @@ func runSync(cmd *cobra.Command, args []string) error {
 	for _, rom := range selected {
 		fmt.Printf("\n-> %s\n", rom.FsName)
 
-		romPath := raCfg.RomPath(rom.PlatformFsSlug, rom.FsName)
+		romPath := emu.RomPath(rom.PlatformFsSlug, rom.FsName)
 
 		if _, err := os.Stat(romPath); err == nil {
 			fmt.Println(" ROM already exists, skipping download")
 			completed++
 		} else {
-			if err := retroarch.EnsureDir(romPath); err != nil {
+			if err := emulator.EnsureDir(romPath); err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to ensure directory for ROM %q: %v\n", rom.FsName, err)
 				failed++
 				continue
@@ -188,8 +194,8 @@ func runSync(cmd *cobra.Command, args []string) error {
 		switch op.Action {
 		case "download":
 			ext := filepath.Ext(op.FileName)
-			savePath := raCfg.SavePath(rom.PlatformFsSlug, rom.FsNameNoExt, strings.TrimPrefix(ext, "."))
-			if err := retroarch.EnsureDir(savePath); err != nil {
+			savePath := emu.SavePath(rom.PlatformFsSlug, rom.FsNameNoExt, strings.TrimPrefix(ext, "."))
+			if err := emulator.EnsureDir(savePath); err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to create dir for %q: %v\n", filepath.Base(savePath), err)
 				failed++
 				continue
@@ -247,7 +253,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 			if answer == "s" {
 				// re-queue as download by falling into the download case
 				ext := filepath.Ext(op.FileName)
-				savePath := raCfg.SavePath(rom.PlatformFsSlug, rom.FsNameNoExt, strings.TrimPrefix(ext, "."))
+				savePath := emu.SavePath(rom.PlatformFsSlug, rom.FsNameNoExt, strings.TrimPrefix(ext, "."))
 				sf, err := os.Create(savePath)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Failed to create %q: %v\n", filepath.Base(savePath), err)

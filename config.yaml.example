@@ -1,10 +1,22 @@
 server: https://yourserverdomain.com
 username: "yourusername"
 password: "yourpassword"
+
+emulator: retroarch  # or retroarch-flatpak, retrodeck
+
 platforms:
-  - platform1 (must match the platform slug in ROMm)
+  - platform1 # must match the platform slug in Romm server
   - platform2
+  - ...
 
 retroarch:
   roms_dir: ~/ROMs
   saves_dir: ~/.config/retroarch/saves
+
+retroarch-flatpak:
+  roms_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/roms
+  saves_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/saves
+
+retrodeck:
+  roms_dir: ~/retrodeck/roms
+  saves_dir: ~/retrodeck/saves

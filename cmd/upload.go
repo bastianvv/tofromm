@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/bastianvv/tofromm/internal/client"
-	"github.com/bastianvv/tofromm/internal/retroarch"
+	"github.com/bastianvv/tofromm/internal/emulator"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -25,9 +25,10 @@ func init() {
 func runUpload(cmd *cobra.Command, args []string) error {
 	c := newClientFromConfig()
 
-	var raCfg retroarch.Config
-	if err := viper.UnmarshalKey("retroarch", &raCfg); err != nil {
-		return fmt.Errorf("Retroarch config not found: %w", err)
+	emulatorKind := viper.GetString("emulator")
+	var emuCfg emulator.Config
+	if err := viper.UnmarshalKey(emulatorKind, &emuCfg); err != nil {
+		return fmt.Errorf("Emulator config not found: %w", err)
 	}
 
 	var platformSlugs []string
@@ -39,7 +40,8 @@ func runUpload(cmd *cobra.Command, args []string) error {
 	}
 
 	hostname, _ := os.Hostname()
-	device, err := c.RegisterDevice(hostname, "Linux")
+	qualifiedHostName := hostname + "-" + emulatorKind
+	device, err := c.RegisterDevice(qualifiedHostName, "Linux", qualifiedHostName)
 	if err != nil {
 		return fmt.Errorf("Failed to register device: %w", err)
 	}
@@ -56,7 +58,7 @@ func runUpload(cmd *cobra.Command, args []string) error {
 
 	romIndex := make(map[string]client.Rom)
 
-	savesDir := retroarch.ExpandPath(raCfg.SavesDir)
+	savesDir := emulator.ExpandPath(emuCfg.SavesDir)
 	completed, failed := 0, 0
 
 	for _, slug := range platformSlugs {
@@ -77,7 +79,7 @@ func runUpload(cmd *cobra.Command, args []string) error {
 		entries, err := os.ReadDir(platformDir)
 
 		if err != nil {
-			return fmt.Errorf("Failed to read saves directory: %w", err)
+			continue
 		}
 
 		for _, entry := range entries {

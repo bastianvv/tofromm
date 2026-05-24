@@ -217,9 +217,10 @@ func (c *Client) GetRomsByPlatform(platformID int) ([]Rom, error) {
 	return all, nil
 }
 
-func (c *Client) RegisterDevice(hostname, platform string) (DeviceCreateResponse, error) {
+func (c *Client) RegisterDevice(hostname, platform, name string) (DeviceCreateResponse, error) {
 	clientName := "tofromm"
 	payload := DeviceCreatePayload{
+		Name:          name,
 		Hostname:      &hostname,
 		Platform:      &platform,
 		Client:        &clientName,
@@ -245,7 +246,7 @@ func (c *Client) RegisterDevice(hostname, platform string) (DeviceCreateResponse
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
 		return DeviceCreateResponse{}, fmt.Errorf("Register Device: status %d, body: %s", resp.StatusCode, body)
 	}
