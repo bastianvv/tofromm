@@ -28,10 +28,11 @@ Run
 This will open the TUI with all your ROMs of the configured platforms.
 You can select the ROMs you want to sync using the Space key. Once ready, press Enter to sync.
 
-This will download all selected ROMS and saves, and place them in the configured directories.
+This will sync all selected ROMS and saves, and place them in the configured directories.
+ROMs will be downloaded if they don't exist locally, and saves will be synced by keeping the newest version.
 Take into account that the current implementation only supports native Retroarch with save directories named by content directory.
 
-After playing, you can upload the saves by running:
+To force upload of local saves, you can run:
 
 ```bash
 ./tofromm upload
@@ -41,8 +42,8 @@ After playing, you can upload the saves by running:
 ToFromm is currently in development, in a working POC.
 
 # Roadmap
-* Conflict resolution for save files
-* Support for save states
-* Support for more platforms: Retroarch flatpak, Retrodeck, and some standalone emulators
-* Gtk GUI
-* Steam Deck plugin
+* [X] Conflict resolution for save files
+* [ ] Support for save states
+* [ ] Support for more platforms: Retroarch flatpak, Retrodeck, and some standalone emulators
+* [ ] Gtk GUI
+* [ ] Steam Deck plugin

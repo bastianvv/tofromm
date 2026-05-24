@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bastianvv/tofromm/internal/client"
@@ -73,6 +75,53 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("No ROMs found for configured platforms")
 	}
 
+	romIndex := make(map[string]client.Rom)
+	romByID := make(map[int]client.Rom)
+
+	for _, rom := range allRoms {
+		romIndex[rom.FsNameNoExt] = rom
+		romByID[rom.ID] = rom
+	}
+
+	savesDir := retroarch.ExpandPath(raCfg.SavesDir)
+	localSaves := make([]client.ClientSaveState, 0)
+	savePathByRomID := make(map[int]string)
+
+	for _, slug := range platformSlugs {
+		platformDir := filepath.Join(savesDir, slug)
+		entries, err := os.ReadDir(platformDir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			name := entry.Name()
+			ext := filepath.Ext(name)
+			if ext == "" {
+				continue
+			}
+			nameNoExt := strings.TrimSuffix(name, ext)
+			rom, ok := romIndex[nameNoExt]
+			if !ok {
+				continue
+			}
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			updatedAt := info.ModTime().UTC().Format(time.RFC3339)
+			localSaves = append(localSaves, client.ClientSaveState{
+				RomID:         rom.ID,
+				FileName:      name,
+				UpdatedAt:     updatedAt,
+				FileSizeBytes: info.Size(),
+			})
+			savePathByRomID[rom.ID] = filepath.Join(platformDir, name)
+		}
+	}
+
 	selected, err := tui.Run(allRoms)
 	if err != nil {
 		return fmt.Errorf("TUI error: %w", err)
@@ -82,9 +131,9 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	negotiation, err := c.Negotiate(device.DeviceId, make([]client.ClientSaveState, 0))
-	if err != nil {
-		return fmt.Errorf("Open sync session errror: %w", err)
+	selectedRomIDs := make(map[int]bool)
+	for _, rom := range selected {
+		selectedRomIDs[rom.ID] = true
 	}
 
 	completed, failed := 0, 0
@@ -120,65 +169,128 @@ func runSync(cmd *cobra.Command, args []string) error {
 			fmt.Println(" ROM downloaded successfully")
 			completed++
 		}
+	}
 
-		summary, err := c.GetSavesSummary(rom.ID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to get save summary for ROM %q: %v\n", rom.FsName, err)
+	negotiation, err := c.Negotiate(device.DeviceId, localSaves)
+	if err != nil {
+		return fmt.Errorf("Open sync session errror: %w", err)
+	}
+
+	for _, op := range negotiation.Operations {
+		if !selectedRomIDs[op.RomID] {
 			continue
 		}
-		if summary.TotalCount == 0 {
-			fmt.Println(" No saves found for this ROM")
+		rom, ok := romByID[op.RomID]
+		if !ok {
 			continue
 		}
 
-		for _, slot := range summary.Slots {
-			save := slot.Latest
-			savePath := raCfg.SavePath(rom.PlatformFsSlug, rom.FsNameNoExt, save.FileExtension)
-
-			if info, err := os.Stat(savePath); err == nil {
-				serverTime, parseErr := time.Parse(time.RFC3339, save.UpdatedAt)
-				if parseErr != nil || !serverTime.After(info.ModTime()) {
-					fmt.Printf(" Save up to date, skipping %s\n", filepath.Base(savePath))
-					continue
-				}
-				fmt.Printf(" Server save is newer, updating %s\n", filepath.Base(savePath))
-			}
-
+		switch op.Action {
+		case "download":
+			ext := filepath.Ext(op.FileName)
+			savePath := raCfg.SavePath(rom.PlatformFsSlug, rom.FsNameNoExt, strings.TrimPrefix(ext, "."))
 			if err := retroarch.EnsureDir(savePath); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create directory for save %q: %v\n", filepath.Base(savePath), err)
+				fmt.Fprintf(os.Stderr, "Failed to create dir for %q: %v\n", filepath.Base(savePath), err)
 				failed++
 				continue
 			}
 
 			sf, err := os.Create(savePath)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create save %q: %v\n", filepath.Base(savePath), err)
+				fmt.Fprintf(os.Stderr, "Failed to create %q: %v\n", filepath.Base(savePath), err)
 				failed++
 				continue
 			}
-			if err := c.DownloadSave(save.ID, sf); err != nil {
+			if err := c.DownloadSave(*op.SaveID, sf); err != nil {
 				sf.Close()
 				os.Remove(savePath)
-				fmt.Fprintf(os.Stderr, "Failed to download save %q: %v\n", filepath.Base(savePath), err)
+				fmt.Fprintf(os.Stderr, "Failed to download save for %q: %v\n", rom.FsName, err)
 				failed++
 				continue
 			}
 			sf.Close()
-
-			if err := c.ConfirmDownload(save.ID, device.DeviceId); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to confirm download for save %q: %v\n", filepath.Base(savePath), err)
+			if err := c.ConfirmDownload(*op.SaveID, device.DeviceId); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to confirm download for %q: %v\n", rom.FsName, err)
 			}
-
-			fmt.Printf("Downloaded save %q\n", filepath.Base(savePath))
+			fmt.Printf(" Downloaded save for %q\n", rom.FsName)
 			completed++
-		}
 
+		case "upload":
+			localPath, ok := savePathByRomID[op.RomID]
+			if !ok {
+				fmt.Fprintf(os.Stderr, "No local save found for %q\n", rom.FsName)
+				failed++
+				continue
+			}
+			f, err := os.Open(localPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to open save for %q: %v\n", rom.FsName, err)
+				failed++
+				continue
+			}
+			if err := c.UploadSave(op.RomID, device.DeviceId, filepath.Base(localPath), f, true); err != nil {
+				f.Close()
+				fmt.Fprintf(os.Stderr, "Failed to upload save for %q: %v\n", rom.FsName, err)
+				failed++
+				continue
+			}
+			f.Close()
+			fmt.Printf(" Uploaded save for %q\n", rom.FsName)
+			completed++
+
+		case "conflict":
+			fmt.Printf("\n Conflict for %q — server: %s | reason: %s\n", rom.FsName, *op.ServerUpdatedAt, op.Reason)
+			fmt.Print(" Keep [l]ocal or [s]erver? ")
+			reader := bufio.NewReader(os.Stdin)
+			answer, _ := reader.ReadString('\n')
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			if answer == "s" {
+				// re-queue as download by falling into the download case
+				ext := filepath.Ext(op.FileName)
+				savePath := raCfg.SavePath(rom.PlatformFsSlug, rom.FsNameNoExt, strings.TrimPrefix(ext, "."))
+				sf, err := os.Create(savePath)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to create %q: %v\n", filepath.Base(savePath), err)
+					failed++
+					continue
+				}
+				if err := c.DownloadSave(*op.SaveID, sf); err != nil {
+					sf.Close()
+					os.Remove(savePath)
+					fmt.Fprintf(os.Stderr, "Failed to download save for %q: %v\n", rom.FsName, err)
+					failed++
+					continue
+				}
+				sf.Close()
+				c.ConfirmDownload(*op.SaveID, device.DeviceId)
+				fmt.Printf(" Kept server save for %q\n", rom.FsName)
+			} else {
+				localPath := savePathByRomID[op.RomID]
+				f, err := os.Open(localPath)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to open local save for %q: %v\n", rom.FsName, err)
+					failed++
+					continue
+				}
+				if err := c.UploadSave(op.RomID, device.DeviceId, filepath.Base(localPath), f, true); err != nil {
+					f.Close()
+					failed++
+					continue
+				}
+				f.Close()
+				fmt.Printf(" Kept local save for %q\n", rom.FsName)
+			}
+			completed++
+
+		case "no_op":
+			fmt.Printf(" Save in sync for %q\n", rom.FsName)
+		}
 	}
 
 	if err := c.CompleteSession(negotiation.SessionID, completed, failed); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to complete session: %v\n", err)
 	}
 
-	fmt.Printf("\ndone - %d Succeded, %d Failed\n", completed, failed)
+	fmt.Printf("\ndone - %d Succeeded, %d Failed\n", completed, failed)
 	return nil
 }
