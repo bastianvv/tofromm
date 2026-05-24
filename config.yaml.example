@@ -1,0 +1,10 @@
+server: https://yourserverdomain.com
+username: "yourusername"
+password: "yourpassword"
+platforms:
+  - platform1 (must match the platform slug in ROMm)
+  - platform2
+
+retroarch:
+  roms_dir: ~/ROMs
+  saves_dir: ~/.config/retroarch/saves

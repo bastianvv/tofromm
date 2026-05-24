@@ -1,0 +1,13 @@
+# Config files
+config.yaml
+
+# Build output
+tofromm
+
+# Code assistants
+.cursor*
+.claude*
+
+# OS artifacts
+.DS_Store
+Thumbs.db
