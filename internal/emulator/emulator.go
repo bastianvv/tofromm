@@ -10,11 +10,13 @@ import (
 type Emulator interface {
 	RomPath(platformFsSlug, romFileName string) string
 	SavePath(platformFsSlug, romFsNameNoExt, saveExtension string) string
+	StatePath(platformFsSlug, romFsNameNoExt, stateExtension string) string
 }
 
 type Config struct {
-	RomsDir  string `mapstructure:"roms_dir"`
-	SavesDir string `mapstructure:"saves_dir"`
+	RomsDir   string `mapstructure:"roms_dir"`
+	SavesDir  string `mapstructure:"saves_dir"`
+	StatesDir string `mapstructure:"states_dir"`
 }
 
 func ExpandPath(path string) string {

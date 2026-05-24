@@ -91,7 +91,6 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 	savesDir := emulator.ExpandPath(emuCfg.SavesDir)
 	localSaves := make([]client.ClientSaveState, 0)
-	savePathByRomID := make(map[int]string)
 
 	for _, slug := range platformSlugs {
 		platformDir := filepath.Join(savesDir, slug)
@@ -124,7 +123,42 @@ func runSync(cmd *cobra.Command, args []string) error {
 				UpdatedAt:     updatedAt,
 				FileSizeBytes: info.Size(),
 			})
-			savePathByRomID[rom.ID] = filepath.Join(platformDir, name)
+		}
+	}
+
+	statesDir := emulator.ExpandPath(emuCfg.StatesDir)
+	for _, slug := range platformSlugs {
+		platformDir := filepath.Join(statesDir, slug)
+		entries, err := os.ReadDir(platformDir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			name := entry.Name()
+			ext := filepath.Ext(name)
+			if !strings.HasPrefix(ext, ".state") {
+				continue
+			}
+			nameNoExt := strings.TrimSuffix(name, ext)
+			rom, ok := romIndex[nameNoExt]
+			if !ok {
+				continue
+			}
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			updatedAt := info.ModTime().UTC().Format(time.RFC3339)
+			localSaves = append(localSaves, client.ClientSaveState{
+				RomID:         rom.ID,
+				FileName:      name,
+				UpdatedAt:     updatedAt,
+				FileSizeBytes: info.Size(),
+			})
+
 		}
 	}
 
@@ -191,26 +225,35 @@ func runSync(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
+		ext := filepath.Ext(op.FileName)
+		var localPath string
+		if strings.HasPrefix(ext, ".state") {
+			localPath = emu.StatePath(rom.PlatformFsSlug, rom.FsNameNoExt, strings.TrimPrefix(ext, "."))
+		} else {
+			localPath = emu.SavePath(rom.PlatformFsSlug, rom.FsNameNoExt, strings.TrimPrefix(ext, "."))
+		}
+		kind := "save"
+		if strings.HasPrefix(ext, ".state") {
+			kind = "state"
+		}
 		switch op.Action {
 		case "download":
-			ext := filepath.Ext(op.FileName)
-			savePath := emu.SavePath(rom.PlatformFsSlug, rom.FsNameNoExt, strings.TrimPrefix(ext, "."))
-			if err := emulator.EnsureDir(savePath); err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create dir for %q: %v\n", filepath.Base(savePath), err)
+			if err := emulator.EnsureDir(localPath); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to create dir for %q: %v\n", filepath.Base(localPath), err)
 				failed++
 				continue
 			}
 
-			sf, err := os.Create(savePath)
+			sf, err := os.Create(localPath)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to create %q: %v\n", filepath.Base(savePath), err)
+				fmt.Fprintf(os.Stderr, "Failed to create %q: %v\n", filepath.Base(localPath), err)
 				failed++
 				continue
 			}
 			if err := c.DownloadSave(*op.SaveID, sf); err != nil {
 				sf.Close()
-				os.Remove(savePath)
-				fmt.Fprintf(os.Stderr, "Failed to download save for %q: %v\n", rom.FsName, err)
+				os.Remove(localPath)
+				fmt.Fprintf(os.Stderr, "Failed to download %s for %q: %v\n", kind, rom.FsName, err)
 				failed++
 				continue
 			}
@@ -218,30 +261,24 @@ func runSync(cmd *cobra.Command, args []string) error {
 			if err := c.ConfirmDownload(*op.SaveID, device.DeviceId); err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to confirm download for %q: %v\n", rom.FsName, err)
 			}
-			fmt.Printf(" Downloaded save for %q\n", rom.FsName)
+			fmt.Printf(" Downloaded %s for %q\n", kind, rom.FsName)
 			completed++
 
 		case "upload":
-			localPath, ok := savePathByRomID[op.RomID]
-			if !ok {
-				fmt.Fprintf(os.Stderr, "No local save found for %q\n", rom.FsName)
-				failed++
-				continue
-			}
 			f, err := os.Open(localPath)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open save for %q: %v\n", rom.FsName, err)
+				fmt.Fprintf(os.Stderr, "Failed to open %s for %q: %v\n", kind, rom.FsName, err)
 				failed++
 				continue
 			}
 			if err := c.UploadSave(op.RomID, device.DeviceId, filepath.Base(localPath), f, true); err != nil {
 				f.Close()
-				fmt.Fprintf(os.Stderr, "Failed to upload save for %q: %v\n", rom.FsName, err)
+				fmt.Fprintf(os.Stderr, "Failed to upload %s for %q: %v\n", kind, rom.FsName, err)
 				failed++
 				continue
 			}
 			f.Close()
-			fmt.Printf(" Uploaded save for %q\n", rom.FsName)
+			fmt.Printf(" Uploaded %s for %q\n", kind, rom.FsName)
 			completed++
 
 		case "conflict":
@@ -263,7 +300,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 				if err := c.DownloadSave(*op.SaveID, sf); err != nil {
 					sf.Close()
 					os.Remove(savePath)
-					fmt.Fprintf(os.Stderr, "Failed to download save for %q: %v\n", rom.FsName, err)
+					fmt.Fprintf(os.Stderr, "Failed to download %s for %q: %v\n", kind, rom.FsName, err)
 					failed++
 					continue
 				}
@@ -271,10 +308,9 @@ func runSync(cmd *cobra.Command, args []string) error {
 				c.ConfirmDownload(*op.SaveID, device.DeviceId)
 				fmt.Printf(" Kept server save for %q\n", rom.FsName)
 			} else {
-				localPath := savePathByRomID[op.RomID]
 				f, err := os.Open(localPath)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to open local save for %q: %v\n", rom.FsName, err)
+					fmt.Fprintf(os.Stderr, "Failed to open local %s for %q: %v\n", kind, rom.FsName, err)
 					failed++
 					continue
 				}
@@ -284,12 +320,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 					continue
 				}
 				f.Close()
-				fmt.Printf(" Kept local save for %q\n", rom.FsName)
+				fmt.Printf(" Kept local %s for %q\n", kind, rom.FsName)
 			}
 			completed++
 
 		case "no_op":
-			fmt.Printf(" Save in sync for %q\n", rom.FsName)
+			fmt.Printf(" %s in sync for %q\n", kind, rom.FsName)
 		}
 	}
 

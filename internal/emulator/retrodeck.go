@@ -17,3 +17,7 @@ func (r *retroDeck) RomPath(platformFsSlug, romFileName string) string {
 func (r *retroDeck) SavePath(platformFsSlug, romFsNameNoExt, saveExtension string) string {
 	return filepath.Join(ExpandPath(r.cfg.SavesDir), platformFsSlug, romFsNameNoExt+"."+saveExtension)
 }
+
+func (r *retroDeck) StatePath(platformFsSlug, romFsNameNoExt, stateExtension string) string {
+	return filepath.Join(ExpandPath(r.cfg.StatesDir), platformFsSlug, romFsNameNoExt+"."+stateExtension)
+}

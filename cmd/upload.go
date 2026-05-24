@@ -59,6 +59,8 @@ func runUpload(cmd *cobra.Command, args []string) error {
 	romIndex := make(map[string]client.Rom)
 
 	savesDir := emulator.ExpandPath(emuCfg.SavesDir)
+	statesDir := emulator.ExpandPath(emuCfg.StatesDir)
+
 	completed, failed := 0, 0
 
 	for _, slug := range platformSlugs {
@@ -119,6 +121,41 @@ func runUpload(cmd *cobra.Command, args []string) error {
 			completed++
 		}
 
+		statesPlatformDir := filepath.Join(statesDir, slug)
+		stateEntries, err := os.ReadDir(statesPlatformDir)
+		if err == nil {
+			for _, entry := range stateEntries {
+				if entry.IsDir() {
+					continue
+				}
+				name := entry.Name()
+				ext := filepath.Ext(name)
+				if !strings.HasPrefix(ext, ".state") {
+					continue
+				}
+				nameNoExt := strings.TrimSuffix(name, ext)
+				rom, ok := romIndex[nameNoExt]
+				if !ok {
+					continue
+				}
+				statePath := filepath.Join(statesPlatformDir, name)
+				f, err := os.Open(statePath)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to open %q: %v\n", name, err)
+					failed++
+					continue
+				}
+				if err := c.UploadSave(rom.ID, device.DeviceId, name, f, true); err != nil {
+					f.Close()
+					fmt.Fprintf(os.Stderr, "Failed to upload %q: %v\n", name, err)
+					failed++
+					continue
+				}
+				f.Close()
+				fmt.Printf(" Uploaded %q\n", name)
+				completed++
+			}
+		}
 	}
 
 	fmt.Printf("\ndone - %d Succeeded, %d Failed\n", completed, failed)

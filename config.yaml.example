@@ -12,11 +12,14 @@ platforms:
 retroarch:
   roms_dir: ~/ROMs
   saves_dir: ~/.config/retroarch/saves
+  states_dir: ~/.config/retroarch/states
 
 retroarch-flatpak:
   roms_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/roms
   saves_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/saves
+  states_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/states
 
 retrodeck:
   roms_dir: ~/retrodeck/roms
   saves_dir: ~/retrodeck/saves
+  states_dir: ~/retrodeck/states
