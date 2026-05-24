@@ -27,8 +27,14 @@ func runUpload(cmd *cobra.Command, args []string) error {
 
 	emulatorKind := viper.GetString("emulator")
 	var emuCfg emulator.Config
+
 	if err := viper.UnmarshalKey(emulatorKind, &emuCfg); err != nil {
 		return fmt.Errorf("Emulator config not found: %w", err)
+	}
+
+	emu, err := emulator.New(emulatorKind, emuCfg)
+	if err != nil {
+		return fmt.Errorf("Failed to initialize emulator: %w", err)
 	}
 
 	var platformSlugs []string
@@ -58,9 +64,6 @@ func runUpload(cmd *cobra.Command, args []string) error {
 
 	romIndex := make(map[string]client.Rom)
 
-	savesDir := emulator.ExpandPath(emuCfg.SavesDir)
-	statesDir := emulator.ExpandPath(emuCfg.StatesDir)
-
 	completed, failed := 0, 0
 
 	for _, slug := range platformSlugs {
@@ -77,7 +80,7 @@ func runUpload(cmd *cobra.Command, args []string) error {
 			romIndex[rom.FsNameNoExt] = rom
 		}
 
-		platformDir := filepath.Join(savesDir, slug)
+		platformDir := emu.SaveDir(slug)
 		entries, err := os.ReadDir(platformDir)
 
 		if err != nil {
@@ -95,8 +98,11 @@ func runUpload(cmd *cobra.Command, args []string) error {
 				continue
 			}
 			nameNoExt := strings.TrimSuffix(name, ext)
-
-			rom, ok := romIndex[nameNoExt]
+			romName, ok := emu.ParseSaveName(nameNoExt, ext)
+			if !ok {
+				continue
+			}
+			rom, ok := romIndex[romName]
 			if !ok {
 				continue
 			}
@@ -121,7 +127,7 @@ func runUpload(cmd *cobra.Command, args []string) error {
 			completed++
 		}
 
-		statesPlatformDir := filepath.Join(statesDir, slug)
+		statesPlatformDir := emu.StateDir(slug)
 		stateEntries, err := os.ReadDir(statesPlatformDir)
 		if err == nil {
 			for _, entry := range stateEntries {

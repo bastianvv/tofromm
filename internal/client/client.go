@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -21,10 +22,17 @@ type Client struct {
 }
 
 func NewClient(baseURL, username, password string) *Client {
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
 	return &Client{
 		BaseURL:    strings.TrimRight(baseURL, "/"),
 		basicAuth:  base64.StdEncoding.EncodeToString([]byte(username + ":" + password)),
-		HTTPClient: &http.Client{Timeout: 30 * time.Second},
+		HTTPClient: &http.Client{Transport: transport},
 	}
 }
 

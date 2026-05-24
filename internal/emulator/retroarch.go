@@ -21,3 +21,15 @@ func (r *retroArch) SavePath(platformFsSlug, romFsNameNoExt, saveExtension strin
 func (r *retroArch) StatePath(platformFsSlug, romFsNameNoExt, stateExtension string) string {
 	return filepath.Join(ExpandPath(r.cfg.StatesDir), platformFsSlug, romFsNameNoExt+"."+stateExtension)
 }
+
+func (r *retroArch) SaveDir(platformFsSlug string) string {
+	return filepath.Join(ExpandPath(r.cfg.SavesDir), platformFsSlug)
+}
+
+func (r *retroArch) StateDir(platformFsSlug string) string {
+	return filepath.Join(ExpandPath(r.cfg.StatesDir), platformFsSlug)
+}
+
+func (r *retroArch) ParseSaveName(nameNoExt, ext string) (string, bool) {
+	return nameNoExt, true
+}

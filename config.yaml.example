@@ -2,24 +2,57 @@ server: https://yourserverdomain.com
 username: "yourusername"
 password: "yourpassword"
 
-emulator: retroarch  # or retroarch-flatpak, retrodeck
+emulators:
+  retroarch:
+    platforms: [platform1, platform2, ...] # Must match the platform folder in Romm server
+    roms_dir: ~/ROMs
+    saves_dir: ~/.config/retroarch/saves
+    states_dir: ~/.config/retroarch/states
 
-platforms:
-  - platform1 # must match the platform slug in Romm server
-  - platform2
-  - ...
+  retroarch-flatpak:
+    platforms: [platform1, platform2, ...]
+    roms_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/roms
+    saves_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/saves
+    states_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/states
 
-retroarch:
-  roms_dir: ~/ROMs
-  saves_dir: ~/.config/retroarch/saves
-  states_dir: ~/.config/retroarch/states
+  retrodeck:
+    platforms: [platform1, platform2, ...]
+    roms_dir: ~/retrodeck/roms
+    saves_dir: ~/retrodeck/saves
+    states_dir: ~/retrodeck/states
 
-retroarch-flatpak:
-  roms_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/roms
-  saves_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/saves
-  states_dir: ~/.var/app/org.libretro.RetroArch/config/retroarch/states
+  duckstation:
+    platforms: [psx]
+    roms_dir: ~/ROMs/psx
+    saves_dir: ~/local/share/duckstation/memcards
+    states_dir: ~/local/share/duckstation/states
 
-retrodeck:
-  roms_dir: ~/retrodeck/roms
-  saves_dir: ~/retrodeck/saves
-  states_dir: ~/retrodeck/states
+  pcsx2:
+    platforms: [ps2]
+    roms_dir: ~/ROMs/ps2
+    saves_dir: ~/.config/PCSX2/memcards
+    states_dir: ~/.config/PCSX2/sstates
+
+  pcsx2-flatpak:
+    platforms: [ps2]
+    roms_dir: ~/ROMs/ps2
+    saves_dir: ~/.var/app/org.pcsx2.PCSX2/config/PCSX2/memcards
+    states_dir: ~/.var/app/org.pcsx2.PCSX2/config/PCSX2/sstates
+
+  rpcs3:
+    platforms: [ps3]
+    roms_dir: ~/.config/rpcs3/games
+    saves_dir: ~/.config/rpcs3/saves
+    states_dir: ~/.config/rpcs3/states
+
+  rpcs3-flatpak:
+    platforms: [ps3]
+    roms_dir: ~/.var/app/org.rpcs3.RPCS3/config/rpcs3/games
+    saves_dir: ~/.var/app/org.rpcs3.RPCS3/config/rpcs3/saves
+    states_dir: ~/.var/app/org.rpcs3.RPCS3/config/rpcs3/states
+
+  dolphin:
+    platforms: [ngc, wii]
+    roms_dir: ~/ROMs/dolphin
+    saves_dir: ~/.var/app/org.DolphinEmu.dolphin-emu/data/dolphin-emu/StateSaves
+    states_dir: ~/.var/app/org.DolphinEmu.dolphin-emu/data/dolphin-emu/StateSave

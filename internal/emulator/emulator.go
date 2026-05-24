@@ -11,12 +11,21 @@ type Emulator interface {
 	RomPath(platformFsSlug, romFileName string) string
 	SavePath(platformFsSlug, romFsNameNoExt, saveExtension string) string
 	StatePath(platformFsSlug, romFsNameNoExt, stateExtension string) string
+	SaveDir(platformFsSlug string) string
+	StateDir(platformFsSlug string) string
+	ParseSaveName(nameNoExt, ext string) (romFsNameNoExt string, ok bool)
 }
 
 type Config struct {
-	RomsDir   string `mapstructure:"roms_dir"`
-	SavesDir  string `mapstructure:"saves_dir"`
-	StatesDir string `mapstructure:"states_dir"`
+	Platforms []string `mapstructure:"platforms"`
+	RomsDir   string   `mapstructure:"roms_dir"`
+	SavesDir  string   `mapstructure:"saves_dir"`
+	StatesDir string   `mapstructure:"states_dir"`
+}
+
+type RomInstaller interface {
+	RomExists(platformFsSlug, romFsName string) bool
+	InstallRom(platformFsSlug, romFsName, srcPath string) error
 }
 
 func ExpandPath(path string) string {
@@ -39,7 +48,19 @@ func New(kind string, cfg Config) (Emulator, error) {
 		return newRetroArchFlatpak(cfg), nil
 	case "retrodeck":
 		return newRetroDeck(cfg), nil
+	case "duckstation":
+		return newDuckstation(cfg), nil
+	case "pcsx2":
+		return newPCSX2(cfg), nil
+	case "pcsx2-flatpak":
+		return newPCSX2Flatpak(cfg), nil
+	case "rpcs3":
+		return newRPCS3(cfg), nil
+	case "rpcs3-flatpak":
+		return newRPCS3Flatpak(cfg), nil
+	case "dolphin":
+		return newDolphin(cfg), nil
 	default:
-		return nil, fmt.Errorf("Unknown emulator: %q - valid options are: retroarch, retroarch-flatpak, retrodeck", kind)
+		return nil, fmt.Errorf("Unknown emulator: %q - valid options are: retroarch, retroarch-flatpak, retrodeck, duckstation, pcsx2, pcsx2-flatpak, rpcs3, rpcs3-flatpak, dolphin", kind)
 	}
 }

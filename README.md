@@ -42,9 +42,29 @@ To force upload of local saves, you can run:
 ToFromm is currently in development, in a working POC.
 
 # Roadmap
+* [X] ROM downloading
+* [X] Support for native Retroach
+* [X] Support for save files
 * [X] Conflict resolution for save files
-* [X] Support for more platforms: Retroarch flatpak, and Retrodeck
+* [X] Support for more Retroarch variants: flatpak and Retrodeck
 * [X] Support for save states
-* [ ] Standalone emulator support (Emulators to be defined)
+* [ ] Standalone emulator support
+  * [ ] Duckstation
+    * [X] Games
+    * [X] Memcards
+    * [ ] Save states
+  * [] PCSX2
+    * [X] Games
+    * [X] Memcards
+    * [ ] Save states
+  * [ ] RPCS3
+    * [X] Games
+    * [ ] Memcards
+    * [ ] Save states
+  * [ ] Dolphin
+    * [X] Games
+    * [ ] Memcards
+    * [ ] Save states
+  * ... More to come
 * [ ] Libadwaita GUI
 * [ ] Steam Deck plugin
