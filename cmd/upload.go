@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/bastianvv/tofromm/internal/client"
 	"github.com/bastianvv/tofromm/internal/emulator"
@@ -84,88 +83,30 @@ func runUpload(cmd *cobra.Command, args []string) error {
 			romIndex[rom.FsNameNoExt] = rom
 		}
 
-		platformDir := emu.SaveDir(slug)
-		entries, err := os.ReadDir(platformDir)
-
-		if err != nil {
-			continue
+		romIDIndex := make(map[string]int, len(romIndex))
+		for k, v := range romIndex {
+			romIDIndex[k] = v.ID
 		}
 
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-
-			name := entry.Name()
-			ext := filepath.Ext(name)
-			if ext == "" {
-				continue
-			}
-			nameNoExt := strings.TrimSuffix(name, ext)
-			romName, ok := emu.ParseSaveName(nameNoExt, ext)
-			if !ok {
-				continue
-			}
-			rom, ok := romIndex[romName]
-			if !ok {
-				continue
-			}
-
-			savePath := filepath.Join(platformDir, name)
-			f, err := os.Open(savePath)
+		for _, s := range emulator.ScanSaves(emu, platformSlugs, romIDIndex) {
+			filePath := filepath.Join(s.Dir, s.FileName)
+			f, err := os.Open(filePath)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open %q: %v\n", name, err)
+				fmt.Fprintf(os.Stderr, "Failed to open %q: %v\n", s.FileName, err)
 				failed++
 				continue
 			}
-
-			if err := c.UploadSave(rom.ID, device.DeviceId, name, f, true); err != nil {
+			if err := c.UploadSave(s.RomID, device.DeviceId, s.FileName, f, true); err != nil {
 				f.Close()
-				fmt.Fprintf(os.Stderr, "Failed to upload %q: %v\n", name, err)
+				fmt.Fprintf(os.Stderr, "Failed to upload %q: %v\n", s.FileName, err)
 				failed++
 				continue
 			}
 			f.Close()
-
-			fmt.Printf(" Uploaded %q\n", name)
+			fmt.Printf(" Uploaded %q\n", s.FileName)
 			completed++
 		}
 
-		statesPlatformDir := emu.StateDir(slug)
-		stateEntries, err := os.ReadDir(statesPlatformDir)
-		if err == nil {
-			for _, entry := range stateEntries {
-				if entry.IsDir() {
-					continue
-				}
-				name := entry.Name()
-				ext := filepath.Ext(name)
-				if !strings.HasPrefix(ext, ".state") {
-					continue
-				}
-				nameNoExt := strings.TrimSuffix(name, ext)
-				rom, ok := romIndex[nameNoExt]
-				if !ok {
-					continue
-				}
-				statePath := filepath.Join(statesPlatformDir, name)
-				f, err := os.Open(statePath)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to open %q: %v\n", name, err)
-					failed++
-					continue
-				}
-				if err := c.UploadSave(rom.ID, device.DeviceId, name, f, true); err != nil {
-					f.Close()
-					fmt.Fprintf(os.Stderr, "Failed to upload %q: %v\n", name, err)
-					failed++
-					continue
-				}
-				f.Close()
-				fmt.Printf(" Uploaded %q\n", name)
-				completed++
-			}
-		}
 	}
 
 	fmt.Printf("\ndone - %d Succeeded, %d Failed\n", completed, failed)

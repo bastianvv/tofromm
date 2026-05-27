@@ -84,74 +84,20 @@ func Run(opts Options) (Result, error) {
 			continue
 		}
 
-		localSaves := make([]client.ClientSaveState, 0)
-		for _, slug := range cfg.Platforms {
-			saveDir := emu.SaveDir(slug)
-			entries, err := os.ReadDir(saveDir)
-			if err != nil {
-				continue
-			}
-			for _, entry := range entries {
-				if entry.IsDir() {
-					continue
-				}
-				name := entry.Name()
-				ext := filepath.Ext(name)
-				if ext == "" {
-					continue
-				}
-				nameNoExt := strings.TrimSuffix(name, ext)
-				romName, ok := emu.ParseSaveName(nameNoExt, ext)
-				if !ok {
-					continue
-				}
-				rom, ok := romIndex[romName]
-				if !ok {
-					continue
-				}
-				info, err := entry.Info()
-				if err != nil {
-					continue
-				}
-				localSaves = append(localSaves, client.ClientSaveState{
-					RomID:         rom.ID,
-					FileName:      name,
-					UpdatedAt:     info.ModTime().UTC().Format(time.RFC3339),
-					FileSizeBytes: info.Size(),
-				})
-			}
+		romIDIndex := make(map[string]int, len(romIndex))
+		for k, v := range romIndex {
+			romIDIndex[k] = v.ID
+		}
 
-			stateDir := emu.StateDir(slug)
-			stateEntries, err := os.ReadDir(stateDir)
-			if err != nil {
-				continue
-			}
-			for _, entry := range stateEntries {
-				if entry.IsDir() {
-					continue
-				}
-				name := entry.Name()
-				ext := filepath.Ext(name)
-				if !strings.HasPrefix(ext, ".state") {
-					continue
-				}
-
-				nameNoExt := strings.TrimSuffix(name, ext)
-				rom, ok := romIndex[nameNoExt]
-				if !ok {
-					continue
-				}
-				info, err := entry.Info()
-				if err != nil {
-					continue
-				}
-				localSaves = append(localSaves, client.ClientSaveState{
-					RomID:         rom.ID,
-					FileName:      name,
-					UpdatedAt:     info.ModTime().UTC().Format(time.RFC3339),
-					FileSizeBytes: info.Size(),
-				})
-			}
+		scanned := emulator.ScanSaves(emu, cfg.Platforms, romIDIndex)
+		localSaves := make([]client.ClientSaveState, 0, len(scanned))
+		for _, s := range scanned {
+			localSaves = append(localSaves, client.ClientSaveState{
+				RomID:         s.RomID,
+				FileName:      s.FileName,
+				UpdatedAt:     s.ModTime.UTC().Format(time.RFC3339),
+				FileSizeBytes: s.FileSizeBytes,
+			})
 		}
 
 		completed, failed := 0, 0
