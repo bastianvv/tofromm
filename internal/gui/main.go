@@ -83,11 +83,19 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	contentStack := gtk.NewStack()
 	contentStack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
 
-	home := adw.NewStatusPage()
-	home.SetTitle("Coming Soon")
-	home.SetDescription("Your home screen will show recently played games and collection stats.")
-	home.SetIconName("view-dashboard-symbolic")
+	rawEmulators := viper.GetStringMap("emulators")
+	emuConfigs := make(map[string]emulator.Config)
+	for kind := range rawEmulators {
+		sub := viper.Sub("emulators." + kind)
+		if sub == nil {
+			continue
+		}
+		var cfg emulator.Config
+		sub.Unmarshal(&cfg)
+		emuConfigs[kind] = cfg
+	}
 
+	home := buildHomePage(overlay, c, platforms, emuConfigs)
 	contentStack.AddNamed(home, "home")
 	contentStack.SetVisibleChildName("home")
 
@@ -97,6 +105,7 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	syncBtn.AddCSSClass("pill")
 	syncBtn.SetVAlign(gtk.AlignCenter)
 	syncBtn.SetSensitive(false)
+	syncBtn.SetVisible(false)
 
 	contentHeader := adw.NewHeaderBar()
 	menuBtn := gtk.NewMenuButton()
@@ -139,7 +148,7 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	contentToolbar.AddTopBar(contentHeader)
 	contentToolbar.SetContent(contentStack)
 
-	contentPage := adw.NewNavigationPage(contentToolbar, "tofromm")
+	contentPage := adw.NewNavigationPage(contentToolbar, "Home")
 
 	var currentRoms []client.Rom
 	var currentChecks []*gtk.CheckButton
@@ -156,18 +165,6 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 			t.SetTimeout(3)
 			overlay.AddToast(t)
 			return
-		}
-
-		rawEmulators := viper.GetStringMap("emulators")
-		emuConfigs := make(map[string]emulator.Config)
-		for kind := range rawEmulators {
-			sub := viper.Sub("emulators." + kind)
-			if sub == nil {
-				continue
-			}
-			var cfg emulator.Config
-			sub.Unmarshal(&cfg)
-			emuConfigs[kind] = cfg
 		}
 
 		syncBtn.SetSensitive(false)
@@ -220,6 +217,7 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	onSelect := func(p client.Platform) {
 		contentPage.SetTitle(p.Name)
 		syncBtn.SetSensitive(false)
+		syncBtn.SetVisible(true)
 		currentRoms = nil
 		currentChecks = nil
 
@@ -288,7 +286,13 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	splitView.InsertActionGroup("tofromm", ag)
 	splitView.SetMinSidebarWidth(200)
 	splitView.SetMaxSidebarWidth(280)
-	splitView.SetSidebar(buildSidebar(c, platforms, onSelect, func() { contentStack.SetVisibleChildName("home") }, menuBtn))
+	splitView.SetSidebar(buildSidebar(c, platforms, onSelect, func() {
+		contentPage.SetTitle("Home")
+		syncBtn.SetSensitive(false)
+		syncBtn.SetVisible(false)
+		contentStack.SetVisibleChildName("home")
+
+	}, menuBtn))
 	splitView.SetContent(contentPage)
 
 	return splitView

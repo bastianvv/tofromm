@@ -58,6 +58,7 @@ type Rom struct {
 	FsNameNoTags   string `json:"fs_name_no_tags"`
 	PlatformID     int    `json:"platform_id"`
 	PlatformFsSlug string `json:"platform_fs_slug"`
+	PathCoverSmall string `json:"path_cover_small"`
 }
 
 func (r *Rom) DisplayName() string {

@@ -91,3 +91,8 @@ func ScanSaves(emu Emulator, platforms []string, romIndex map[string]int) []Loca
 
 	return results
 }
+
+func RomExists(emu Emulator, platformSlug, fsName string) bool {
+	_, err := os.Stat(emu.RomPath(platformSlug, fsName))
+	return err == nil
+}

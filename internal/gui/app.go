@@ -5,7 +5,9 @@ import (
 
 	"github.com/bastianvv/tofromm/internal/client"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/spf13/viper"
 )
 
@@ -35,6 +37,11 @@ func buildWindow(app *adw.Application) {
 	}
 
 	win.SetContent(overlay)
+
+	provider := gtk.NewCSSProvider()
+	provider.LoadFromString(`.cover-art { border-radius: 12px; }`)
+	gtk.StyleContextAddProviderForDisplay(gdk.DisplayGetDefault(), provider, 600)
+
 	win.Present()
 }
 
