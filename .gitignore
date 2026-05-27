@@ -3,6 +3,11 @@ config.yaml
 
 # Build output
 tofromm
+vendor/
+build-dir/
+.flatpak-builder/
+repo/
+*.flatpak
 
 # Code assistants
 .cursor*

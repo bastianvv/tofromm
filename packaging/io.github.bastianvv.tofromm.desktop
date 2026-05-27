@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Tofromm
+Comment=Sync ROMs and saves between your Linux machine and a ROMM server
+Exec=tofromm gui
+Icon=io.github.bastianvv.tofromm
+Type=Application
+Categories=Game;
+Keywords=retroarch;romm;roms;saves;sync;retro;emulator;

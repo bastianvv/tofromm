@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<component type="desktop-application">
+  <id>io.github.bastianvv.tofromm</id>
+
+  <name>Tofromm</name>
+  <summary
+    >Sync ROMs and saves between your Linux machine and a ROMM server</summary>
+
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+
+  <description>
+    <p>
+      Tofromm syncs your ROMs and save files between a self-hosted ROMM server
+      and local emulators such as RetroArch, Duckstation, PCSX2, and more.
+      Pick games from your library, download them with their saves, and upload
+      saves back when you're done.
+    </p>
+  </description>
+
+  <screenshots>
+    <screenshot type="default">
+      <image
+            >https://raw.githubusercontent.com/bastianvv/tofromm/main/packaging/screenshots/home.png</image>
+      <caption>Home screen showing your game library</caption>
+    </screenshot>
+  </screenshots>
+
+  <launchable type="desktop-id">io.github.bastianvv.tofromm.desktop</launchable>
+
+  <url type="homepage">https://github.com/bastianvv/tofromm</url>
+  <url type="bugtracker">https://github.com/bastianvv/tofromm/issues</url>
+
+  <developer id="io.github.bastianvv">
+    <name>bastianvv</name>
+  </developer>
+
+  <releases>
+    <release version="0.6" date="2026-05-27" />
+  </releases>
+
+  <content_rating type="oars-1.1" />
+
+</component>
