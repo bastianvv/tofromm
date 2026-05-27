@@ -116,8 +116,8 @@ func newServerSetupPage(nav *adw.NavigationView, overlay *adw.ToastOverlay) *adw
 }
 
 var emuOptions = []string{
-	"(skip)", "retroarch", "retroarch-flatpak", "duckstation",
-	"pcsx2", "pcsx2-flatpak", "rpcs3", "rpcs3-flatpak", "dolphin",
+	"(skip)", "retroarch", "retroarch-flatpak", "retroarch-retrodeck", "duckstation", "duckstation-retrodeck",
+	"pcsx2", "pcsx2-flatpak", "pcsx2-retrodeck", "rpcs3", "rpcs3-flatpak", "rpcs3-retrodeck", "dolphin", "dolphin-retrodeck",
 }
 
 var emuDefaults = map[string][3]string{

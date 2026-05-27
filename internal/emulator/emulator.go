@@ -46,7 +46,7 @@ func New(kind string, cfg Config) (Emulator, error) {
 		return newRetroArch(cfg), nil
 	case "retroarch-flatpak":
 		return newRetroArchFlatpak(cfg), nil
-	case "retrodeck":
+	case "retroarch-retrodeck":
 		return newRetroDeck(cfg), nil
 	case "duckstation":
 		return newDuckstation(cfg), nil
@@ -60,7 +60,15 @@ func New(kind string, cfg Config) (Emulator, error) {
 		return newRPCS3Flatpak(cfg), nil
 	case "dolphin":
 		return newDolphin(cfg), nil
+	case "duckstation-retrodeck":
+		return newDuckstation(cfg), nil
+	case "pcsx2-retrodeck":
+		return newPCSX2(cfg), nil
+	case "rpcs3-retrodeck":
+		return newRPCS3(cfg), nil
+	case "dolphin-retrodeck":
+		return newDolphin(cfg), nil
 	default:
-		return nil, fmt.Errorf("Unknown emulator: %q - valid options are: retroarch, retroarch-flatpak, retrodeck, duckstation, pcsx2, pcsx2-flatpak, rpcs3, rpcs3-flatpak, dolphin", kind)
+		return nil, fmt.Errorf("Unknown emulator: %q - valid options are: retroarch, retroarch-flatpak, retroarch-retrodeck, duckstation, pcsx2, pcsx2-flatpak, rpcs3, rpcs3-flatpak, dolphin, duckstation-retrodeck, pcsx2-retrodeck, rpcs3-retrodeck, dolphin-retrodeck", kind)
 	}
 }
