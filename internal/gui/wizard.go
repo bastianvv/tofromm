@@ -121,15 +121,20 @@ var emuOptions = []string{
 }
 
 var emuDefaults = map[string][3]string{
-	"(skip)":            {"", "", ""},
-	"retroarch":         {"~/ROMs", "~/.config/retroarch/saves", "~/.config/retroarch/states"},
-	"retroarch-flatpak": {"~/ROMs", "~/.var/app/org.libretro.RetroArch/config/retroarch/saves", "~/.var/app/org.libretro.RetroArch/config/retroarch/states"},
-	"duckstation":       {"~/ROMs/psx", "~/.local/share/duckstation/saves", "~/.local/share/duckstation/states"},
-	"pcsx2":             {"~/ROMs/ps2", "~/.config/pcsx2/memcards", "~/.config/pcsx2/sstates"},
-	"pcsx2-flatpak":     {"~/ROMs/ps2", "~/.var/app/org.pcsx2.pcsx2/config/pcsx2/memcards", "~/.var/app/org.pcsx2.pcsx2/config/pcsx2/sstates"},
-	"rpcs3":             {"~/.config/rpcs3/games", "~/.config/rpcs3/saves", "~/.config/rpcs3/states"},
-	"rpcs3-flatpak":     {"~/.var/app/net.rpcs3.RPCS3/config/rpcs3/games", "~/.var/app/net.rpcs3.RPCS3/config/rpcs3/saves", "~/.var/app/net.rpcs3.RPCS3/config/rpcs3/states"},
-	"dolphin":           {"~/ROMs/dolphin", "~/.var/app/org.DolphinEmu.dolphin-emu/config/dolphin-emu/saves", "~/.var/app/org.DolphinEmu.dolphin-emu/data/dolphin-emu/StateSave"},
+	"(skip)":                {"", "", ""},
+	"retroarch":             {"~/ROMs", "~/.config/retroarch/saves", "~/.config/retroarch/states"},
+	"retroarch-flatpak":     {"~/ROMs", "~/.var/app/org.libretro.RetroArch/config/retroarch/saves", "~/.var/app/org.libretro.RetroArch/config/retroarch/states"},
+	"duckstation":           {"~/ROMs/psx", "~/.local/share/duckstation/saves", "~/.local/share/duckstation/states"},
+	"pcsx2":                 {"~/ROMs/ps2", "~/.config/pcsx2/memcards", "~/.config/pcsx2/sstates"},
+	"pcsx2-flatpak":         {"~/ROMs/ps2", "~/.var/app/org.pcsx2.pcsx2/config/pcsx2/memcards", "~/.var/app/org.pcsx2.pcsx2/config/pcsx2/sstates"},
+	"rpcs3":                 {"~/.config/rpcs3/games", "~/.config/rpcs3/saves", "~/.config/rpcs3/states"},
+	"rpcs3-flatpak":         {"~/.var/app/net.rpcs3.RPCS3/config/rpcs3/games", "~/.var/app/net.rpcs3.RPCS3/config/rpcs3/saves", "~/.var/app/net.rpcs3.RPCS3/config/rpcs3/states"},
+	"dolphin":               {"~/ROMs/dolphin", "~/.var/app/org.DolphinEmu.dolphin-emu/config/dolphin-emu/saves", "~/.var/app/org.DolphinEmu.dolphin-emu/data/dolphin-emu/StateSave"},
+	"retroarch-retrodeck":   {"~/retrodeck/roms", "~/retrodeck/saves", "~/retrodeck/states"},
+	"duckstation-retrodeck": {"~/retrodeck/roms/psx", "~/retrodeck/saves/psx/duckstation", "~/retrodeck/states/psx/duckstation"},
+	"pcsx2-retrodeck":       {"~/retrodeck/roms/ps2", "~/retrodeck/saves/ps2/pcsx2/memcards", "~/retrodeck/states/ps2/pcsx2"},
+	"rpcs3-retrodeck":       {"~/retrodeck/roms/ps3", "~/retrodeck/saves/ps3/rpcs3", "~/retrodeck/states/ps3/rpcs3"},
+	"dolphin-retrodeck":     {"~/retrodeck/roms/gc", "~/retrodeck/saves", "~/retrodeck/states"},
 }
 
 func newEmulatorSetupPage(nav *adw.NavigationView, overlay *adw.ToastOverlay, platforms []client.Platform) *adw.NavigationPage {
