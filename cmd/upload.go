@@ -23,6 +23,10 @@ func init() {
 }
 
 func runUpload(cmd *cobra.Command, args []string) error {
+	if viper.GetString("server") == "" {
+		return fmt.Errorf("No server configured - Add server to your config.yaml")
+	}
+
 	c := newClientFromConfig()
 
 	emulatorKind := viper.GetString("emulator")

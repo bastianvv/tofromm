@@ -43,17 +43,30 @@ func (c *Client) authHeader() string {
 // Platforms and ROMs
 
 type Platform struct {
-	ID     int    `json:"id"`
-	FsSlug string `json:"fs_slug"`
-	Name   string `json:"name"`
+	ID       int    `json:"id"`
+	FsSlug   string `json:"fs_slug"`
+	Name     string `json:"name"`
+	RomCount int    `json:"rom_count"`
 }
 
 type Rom struct {
 	ID             int    `json:"id"`
 	FsName         string `json:"fs_name"`
 	FsNameNoExt    string `json:"fs_name_no_ext"`
+	Name           string `json:"name"`
+	FsNameNoTags   string `json:"fs_name_no_tags"`
 	PlatformID     int    `json:"platform_id"`
 	PlatformFsSlug string `json:"platform_fs_slug"`
+}
+
+func (r *Rom) DisplayName() string {
+	if r.Name != "" {
+		return r.Name
+	}
+	if r.FsNameNoTags != "" {
+		return r.FsNameNoTags
+	}
+	return r.FsNameNoExt
 }
 
 type RomPage struct {

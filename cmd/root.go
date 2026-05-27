@@ -32,8 +32,10 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
-		fmt.Fprintln(os.Stderr, "Configuration error:", err)
-		os.Exit(1)
+		if !os.IsNotExist(err) {
+			fmt.Fprintln(os.Stderr, "Configuration error:", err)
+			os.Exit(1)
+		}
 	}
 }
 

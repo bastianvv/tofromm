@@ -39,7 +39,7 @@ To force upload of local saves, you can run:
 ```
 
 # Status
-ToFromm is currently in development, in a working POC.
+ToFromm is currently in development, with a working TUI and a GUI: **only happy path cases tested, expect bugs**
 
 # Roadmap
 * [X] ROM downloading
@@ -53,7 +53,7 @@ ToFromm is currently in development, in a working POC.
     * [X] Games
     * [X] Memcards
     * [ ] Save states
-  * [] PCSX2
+  * [ ] PCSX2
     * [X] Games
     * [X] Memcards
     * [ ] Save states
