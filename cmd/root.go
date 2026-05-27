@@ -7,6 +7,8 @@ import (
 	"github.com/bastianvv/tofromm/internal/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	appconfig "github.com/bastianvv/tofromm/internal/config"
 )
 
 var rootCmd = &cobra.Command{
@@ -27,7 +29,7 @@ func init() {
 }
 
 func initConfig() {
-	viper.SetConfigFile("config.yaml")
+	viper.SetConfigFile(appconfig.FilePath())
 	viper.SetEnvPrefix("Romm")
 	viper.AutomaticEnv()
 

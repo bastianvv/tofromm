@@ -6,6 +6,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/spf13/viper"
+
+	appconfig "github.com/bastianvv/tofromm/internal/config"
 )
 
 func newServerSetupPage(nav *adw.NavigationView, overlay *adw.ToastOverlay) *adw.NavigationPage {
@@ -93,7 +95,8 @@ func newServerSetupPage(nav *adw.NavigationView, overlay *adw.ToastOverlay) *adw
 				viper.Set("server", serverURL)
 				viper.Set("username", username)
 				viper.Set("password", password)
-				viper.WriteConfigAs("config.yaml")
+				appconfig.EnsureDir()
+				viper.WriteConfigAs(appconfig.FilePath())
 				nav.Push(newEmulatorSetupPage(nav, overlay, platforms))
 			})
 		}()
@@ -284,7 +287,8 @@ func newEmulatorSetupPage(nav *adw.NavigationView, overlay *adw.ToastOverlay, pl
 			}
 		}
 		viper.Set("emulators", emulatorsMap)
-		viper.WriteConfigAs("config.yaml")
+		appconfig.EnsureDir()
+		viper.WriteConfigAs(appconfig.FilePath())
 
 		nav.Replace([]*adw.NavigationPage{newMainPage(nav, overlay)})
 	})
