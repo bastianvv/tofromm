@@ -2,6 +2,8 @@ package gui
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/bastianvv/tofromm/internal/emulator"
 	syncer "github.com/bastianvv/tofromm/internal/sync"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	pixbuf "github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -285,13 +288,13 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	splitView.InsertActionGroup("tofromm", ag)
 	splitView.SetMinSidebarWidth(200)
 	splitView.SetMaxSidebarWidth(280)
-	splitView.SetSidebar(buildSidebar(platforms, onSelect, func() { contentStack.SetVisibleChildName("home") }, menuBtn))
+	splitView.SetSidebar(buildSidebar(c, platforms, onSelect, func() { contentStack.SetVisibleChildName("home") }, menuBtn))
 	splitView.SetContent(contentPage)
 
 	return splitView
 }
 
-func buildSidebar(platforms []client.Platform, onSelect func(client.Platform), onHome func(), menuBtn *gtk.MenuButton) *adw.NavigationPage {
+func buildSidebar(c *client.Client, platforms []client.Platform, onSelect func(client.Platform), onHome func(), menuBtn *gtk.MenuButton) *adw.NavigationPage {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 
 	homeList := gtk.NewListBox()
@@ -325,6 +328,53 @@ func buildSidebar(platforms []client.Platform, onSelect func(client.Platform), o
 		p := p
 		row := adw.NewActionRow()
 		row.SetTitle(p.Name)
+
+		img := gtk.NewImage()
+		img.SetFromIconName("media-optical-symbolic")
+		img.SetPixelSize(32)
+		row.AddPrefix(img)
+
+		go func() {
+			iconURL := ""
+			for _, ext := range []string{".svg", ".ico"} {
+				url := c.BaseURL + "/assets/platforms/" + p.Slug + ext
+				resp, err := http.Get(url)
+				if resp != nil {
+					resp.Body.Close()
+				}
+				if err == nil && resp.StatusCode == http.StatusOK {
+					iconURL = url
+					break
+				}
+			}
+			if iconURL == "" {
+				return
+			}
+
+			resp, err := http.Get(iconURL)
+			if err != nil || resp.StatusCode != http.StatusOK {
+				return
+			}
+			defer resp.Body.Close()
+			data, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return
+			}
+			loader := pixbuf.NewPixbufLoader()
+			loader.SetSize(32, 32)
+			if err := loader.Write(data); err != nil {
+				return
+			}
+			loader.Close()
+			pb := loader.Pixbuf()
+			if pb == nil {
+				return
+			}
+			glib.IdleAdd(func() {
+				img.SetFromPixbuf(pb)
+			})
+		}()
+
 		row.SetActivatable(true)
 		row.ConnectActivated(func() {
 			onSelect(p)

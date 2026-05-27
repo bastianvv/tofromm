@@ -44,6 +44,7 @@ func (c *Client) authHeader() string {
 
 type Platform struct {
 	ID       int    `json:"id"`
+	Slug     string `json:"slug"`
 	FsSlug   string `json:"fs_slug"`
 	Name     string `json:"name"`
 	RomCount int    `json:"rom_count"`
