@@ -38,20 +38,45 @@ func newMainPage(nav *adw.NavigationView, overlay *adw.ToastOverlay) *adw.Naviga
 			})
 			return
 		}
-		var platforms []client.Platform
-		for _, p := range allPlatforms {
-			if p.RomCount > 0 {
-				platforms = append(platforms, p)
+
+		rawEmulators := viper.GetStringMap("emulators")
+		configuredSlugs := make(map[string]bool)
+		for kind := range rawEmulators {
+			sub := viper.Sub("emulators." + kind)
+			if sub == nil {
+				continue
+			}
+			var cfg emulator.Config
+			if err := sub.Unmarshal(&cfg); err != nil {
+				continue
+			}
+			for _, slug := range cfg.Platforms {
+				configuredSlugs[slug] = true
 			}
 		}
+
+		var allRommPlatforms []client.Platform
+		for _, p := range allPlatforms {
+			if p.RomCount > 0 {
+				allRommPlatforms = append(allRommPlatforms, p)
+			}
+		}
+
+		var sidebarPlatforms []client.Platform
+		for _, p := range allRommPlatforms {
+			if configuredSlugs[p.FsSlug] {
+				sidebarPlatforms = append(sidebarPlatforms, p)
+			}
+		}
+
 		glib.IdleAdd(func() {
-			page.SetChild(buildSplitView(nav, overlay, c, platforms))
+			page.SetChild(buildSplitView(nav, overlay, c, sidebarPlatforms, allRommPlatforms))
 		})
 	}()
 	return page
 }
 
-func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *client.Client, platforms []client.Platform) *adw.NavigationSplitView {
+func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *client.Client, platforms []client.Platform, allPlatforms []client.Platform) *adw.NavigationSplitView {
 	contentStack := gtk.NewStack()
 	contentStack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
 
@@ -82,7 +107,7 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 
 	emuAction := gio.NewSimpleAction("emulator-config", nil)
 	emuAction.ConnectActivate(func(_ *glib.Variant) {
-		nav.Push(newEmulatorSetupPage(nav, overlay, platforms))
+		nav.Push(newEmulatorSetupPage(nav, overlay, allPlatforms))
 	})
 
 	aboutAction := gio.NewSimpleAction("about", nil)

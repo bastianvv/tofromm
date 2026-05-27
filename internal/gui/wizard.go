@@ -141,6 +141,25 @@ func newEmulatorSetupPage(nav *adw.NavigationView, overlay *adw.ToastOverlay, pl
 
 	emuModel := gtk.NewStringList(emuOptions)
 
+	type emuPaths struct{ romsDir, savesDir, statesDir string }
+	platformToEmu := map[string]string{}
+	emuToPaths := map[string]emuPaths{}
+
+	for kind := range viper.GetStringMap("emulators") {
+		sub := viper.Sub("emulators." + kind)
+		if sub == nil {
+			continue
+		}
+		for _, slug := range sub.GetStringSlice("platforms") {
+			platformToEmu[slug] = kind
+		}
+		emuToPaths[kind] = emuPaths{
+			romsDir:   sub.GetString("roms_dir"),
+			savesDir:  sub.GetString("saves_dir"),
+			statesDir: sub.GetString("states_dir"),
+		}
+	}
+
 	prefsPage := adw.NewPreferencesPage()
 	group := adw.NewPreferencesGroup()
 	group.SetTitle("Assign Emulators")
@@ -157,7 +176,6 @@ func newEmulatorSetupPage(nav *adw.NavigationView, overlay *adw.ToastOverlay, pl
 		combo := adw.NewComboRow()
 		combo.SetTitle("Emulator")
 		combo.SetModel(emuModel)
-		combo.SetSelected(0)
 
 		romsEntry := adw.NewEntryRow()
 		romsEntry.SetTitle("ROMs Directory")
@@ -182,6 +200,24 @@ func newEmulatorSetupPage(nav *adw.NavigationView, overlay *adw.ToastOverlay, pl
 			savesEntry.SetText(defaults[1])
 			statesEntry.SetText(defaults[2])
 		})
+
+		existingKind := platformToEmu[platform.FsSlug]
+		selectedIdx := 0
+		for j, opt := range emuOptions {
+			if opt == existingKind {
+				selectedIdx = j
+				break
+			}
+		}
+
+		combo.SetSelected(uint(selectedIdx))
+		if existingKind != "" {
+			paths := emuToPaths[existingKind]
+			romsEntry.SetText(paths.romsDir)
+			savesEntry.SetText(paths.savesDir)
+			statesEntry.SetText(paths.statesDir)
+			expander.SetExpanded(true)
+		}
 
 		expander.AddRow(combo)
 		expander.AddRow(romsEntry)
