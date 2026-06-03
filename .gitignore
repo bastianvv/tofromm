@@ -3,6 +3,7 @@ config.yaml
 
 # Build output
 tofromm
+tofromm-cli
 vendor/
 build-dir/
 .flatpak-builder/
