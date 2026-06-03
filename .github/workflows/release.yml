@@ -21,7 +21,7 @@ jobs:
       - name: Install GTK4 dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libgirepository1.0-dev
 
       - name: Build full binary
         run: go build -o tofromm-linux-amd64 .
