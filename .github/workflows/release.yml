@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install GTK4 dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+
+      - name: Build full binary
+        run: go build -o tofromm-linux-amd64 .
+
+      - name: Build CLI binary
+        run: CGO_ENABLED=0 go build -tags nogui -o tofromm-cli-linux-amd64 .
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            tofromm-linux-amd64
+            tofromm-cli-linux-amd64
+          generate_release_notes: true
