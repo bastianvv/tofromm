@@ -16,6 +16,7 @@ type Options struct {
 	EmuConfigs map[string]emulator.Config
 	Selected   []client.Rom
 	OnProgress func(msg string)
+	OnRomStart func(current, total int)
 	OnConflict func(romName, serverTime, reason string) bool
 }
 
@@ -65,6 +66,9 @@ func Run(opts Options) (Result, error) {
 	hostname, _ := os.Hostname()
 	totalCompleted, totalFailed := 0, 0
 
+	romsDone := 0
+	totalRoms := len(opts.Selected)
+
 	for kind, cfg := range opts.EmuConfigs {
 		emu, err := emulator.New(kind, cfg)
 		if err != nil {
@@ -105,6 +109,10 @@ func Run(opts Options) (Result, error) {
 		for _, rom := range opts.Selected {
 			if !platformSet[rom.PlatformFsSlug] {
 				continue
+			}
+			romsDone++
+			if opts.OnRomStart != nil {
+				opts.OnRomStart(romsDone, totalRoms)
 			}
 			opts.OnProgress(fmt.Sprintf("-> %s", rom.FsName))
 

@@ -15,7 +15,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
-func buildHomePage(overlay *adw.ToastOverlay, c *client.Client, platforms []client.Platform, emuConfigs map[string]emulator.Config) *gtk.Box {
+func buildHomePage(overlay *adw.ToastOverlay, c *client.Client, platforms []client.Platform, emuConfigs map[string]emulator.Config, onSync func([]client.Rom)) *gtk.Box {
 	outer := gtk.NewBox(gtk.OrientationVertical, 0)
 
 	spinner := adw.NewSpinner()
@@ -113,11 +113,21 @@ func buildHomePage(overlay *adw.ToastOverlay, c *client.Client, platforms []clie
 				return
 			}
 
+			var allHomeRoms []client.Rom
+			for _, rs := range withSaves {
+				allHomeRoms = append(allHomeRoms, rs.rom)
+			}
+			allHomeRoms = append(allHomeRoms, onPlaylist...)
+
 			content := gtk.NewBox(gtk.OrientationVertical, 24)
 			content.SetMarginTop(24)
 			content.SetMarginBottom(24)
 			content.SetMarginStart(18)
 			content.SetMarginEnd(18)
+
+			if len(allHomeRoms) > 0 {
+				onSync(allHomeRoms)
+			}
 
 			if len(currentlyPlaying) > 0 {
 				content.Append(buildSection(c, "Currently Playing", currentlyPlaying))

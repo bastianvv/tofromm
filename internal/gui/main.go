@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	"sort"
 	"strings"
 
 	"github.com/bastianvv/tofromm/internal/client"
@@ -95,9 +95,8 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 		emuConfigs[kind] = cfg
 	}
 
-	home := buildHomePage(overlay, c, platforms, emuConfigs)
-	contentStack.AddNamed(home, "home")
-	contentStack.SetVisibleChildName("home")
+	var homeSync func()
+	var doSync func([]client.Rom)
 
 	syncBtn := gtk.NewButton()
 	syncBtn.SetLabel("Sync")
@@ -106,6 +105,63 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	syncBtn.SetVAlign(gtk.AlignCenter)
 	syncBtn.SetSensitive(false)
 	syncBtn.SetVisible(false)
+
+	home := buildHomePage(overlay, c, platforms, emuConfigs, func(roms []client.Rom) {
+		homeSync = func() { doSync(roms) }
+		if contentStack.VisibleChildName() == "home" {
+			syncBtn.SetVisible(true)
+			syncBtn.SetSensitive(true)
+		}
+	})
+
+	contentStack.AddNamed(home, "home")
+	contentStack.SetVisibleChildName("home")
+
+	progressBar := gtk.NewProgressBar()
+	progressBar.SetShowText(true)
+	progressBar.SetHExpand(true)
+	progressBar.SetMarginTop(8)
+	progressBar.SetMarginBottom(8)
+	progressBar.SetMarginStart(12)
+	progressBar.SetMarginEnd(6)
+
+	logToggle := gtk.NewToggleButton()
+	logToggle.SetLabel("Log")
+	logToggle.SetVAlign(gtk.AlignCenter)
+	logToggle.SetMarginEnd(12)
+
+	logView := gtk.NewTextView()
+	logView.SetEditable(false)
+	logView.SetMonospace(true)
+	logView.SetWrapMode(gtk.WrapWord)
+	logView.SetMarginTop(6)
+	logView.SetMarginBottom(6)
+	logView.SetMarginStart(12)
+	logView.SetMarginEnd(12)
+	logBuf := logView.Buffer()
+	logEndMark := logBuf.CreateMark("end", logBuf.EndIter(), false)
+
+	logScrolled := gtk.NewScrolledWindow()
+	logScrolled.SetChild(logView)
+	logScrolled.SetSizeRequest(-1, 160)
+
+	logRevealer := gtk.NewRevealer()
+	logRevealer.SetChild(logScrolled)
+	logRevealer.SetRevealChild(false)
+	logRevealer.SetTransitionType(gtk.RevealerTransitionTypeSlideUp)
+
+	logToggle.ConnectToggled(func() {
+		logRevealer.SetRevealChild(logToggle.Active())
+	})
+
+	progressRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	progressRow.Append(progressBar)
+	progressRow.Append(logToggle)
+
+	progressArea := gtk.NewBox(gtk.OrientationVertical, 0)
+	progressArea.Append(progressRow)
+	progressArea.Append(logRevealer)
+	progressArea.SetVisible(false)
 
 	contentHeader := adw.NewHeaderBar()
 	menuBtn := gtk.NewMenuButton()
@@ -127,13 +183,13 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 		d := adw.NewAboutDialog()
 		d.SetApplicationName("Tofromm")
 		d.SetApplicationIcon(appID)
-		d.SetVersion("0.5")
+		d.SetVersion("0.7")
 		d.SetDeveloperName("bastianvv")
 		d.SetDevelopers([]string{"bastianvv"})
 		d.SetComments("Sync ROMs and saves between your Linux machine and a ROMM server.")
 		d.SetWebsite("https://github.com/bastianvv/tofromm")
 		d.SetIssueURL("https://github.com/bastianvv/tofromm/issues")
-		d.SetCopyright("© 2025 bastianvv")
+		d.SetCopyright("© 2026 bastianvv")
 		d.SetLicenseType(gtk.LicenseMITX11)
 		d.Present(menuBtn)
 	})
@@ -147,38 +203,36 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	contentToolbar := adw.NewToolbarView()
 	contentToolbar.AddTopBar(contentHeader)
 	contentToolbar.SetContent(contentStack)
+	contentToolbar.AddBottomBar(progressArea)
 
 	contentPage := adw.NewNavigationPage(contentToolbar, "Home")
 
 	var currentRoms []client.Rom
 	var currentChecks []*gtk.CheckButton
-
-	syncBtn.ConnectClicked(func() {
-		var selected []client.Rom
-		for i, check := range currentChecks {
-			if check.Active() {
-				selected = append(selected, currentRoms[i])
-			}
-		}
-		if len(selected) == 0 {
-			t := adw.NewToast("No ROMs selected")
-			t.SetTimeout(3)
-			overlay.AddToast(t)
-			return
-		}
-
+	doSync = func(selected []client.Rom) {
 		syncBtn.SetSensitive(false)
-		t := adw.NewToast("Sync started…")
-		t.SetTimeout(2)
-		overlay.AddToast(t)
+		logBuf.SetText("")
+		progressBar.SetFraction(0)
+		progressBar.SetText("Starting…")
+		progressArea.SetVisible(true)
 
 		go func() {
 			result, err := syncer.Run(syncer.Options{
 				Client:     c,
 				EmuConfigs: emuConfigs,
 				Selected:   selected,
+				OnRomStart: func(current, total int) {
+					glib.IdleAdd(func() {
+						progressBar.SetFraction(float64(current-1) / float64(total))
+						progressBar.SetText(fmt.Sprintf("%d / %d", current, total))
+					})
+				},
 				OnProgress: func(msg string) {
-					fmt.Fprintln(os.Stderr, msg)
+					glib.IdleAdd(func() {
+						end := logBuf.EndIter()
+						logBuf.Insert(end, msg+"\n")
+						logView.ScrollMarkOnscreen(logEndMark)
+					})
 				},
 				OnConflict: func(romName, serverTime, reason string) bool {
 					ch := make(chan bool, 1)
@@ -201,17 +255,39 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 			})
 			glib.IdleAdd(func() {
 				syncBtn.SetSensitive(true)
+				progressBar.SetFraction(1.0)
 				if err != nil {
+					progressBar.SetText("Sync failed: " + err.Error())
 					t := adw.NewToast("Sync failed: " + err.Error())
 					t.SetTimeout(5)
 					overlay.AddToast(t)
 					return
 				}
-				t := adw.NewToast(fmt.Sprintf("Done — %d succeeded, %d failed", result.Completed, result.Failed))
-				t.SetTimeout(5)
-				overlay.AddToast(t)
+				progressBar.SetText(fmt.Sprintf("Done — %d synced, %d failed", result.Completed, result.Failed))
 			})
 		}()
+	}
+
+	syncBtn.ConnectClicked(func() {
+		if contentStack.VisibleChildName() == "home" {
+			if homeSync != nil {
+				homeSync()
+			}
+			return
+		}
+		var selected []client.Rom
+		for i, check := range currentChecks {
+			if check.Active() {
+				selected = append(selected, currentRoms[i])
+			}
+		}
+		if len(selected) == 0 {
+			t := adw.NewToast("No ROMs selected")
+			t.SetTimeout(3)
+			overlay.AddToast(t)
+			return
+		}
+		doSync(selected)
 	})
 
 	onSelect := func(p client.Platform) {
@@ -230,6 +306,32 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 
 		go func() {
 			roms, err := c.GetRomsByPlatform(p.ID)
+
+			syncedIDs := map[int]bool{}
+			if err == nil {
+				romNameIndex := make(map[string]int, len(roms))
+				for _, rom := range roms {
+					romNameIndex[rom.FsNameNoExt] = rom.ID
+				}
+				for kind, cfg := range emuConfigs {
+					for _, slug := range cfg.Platforms {
+						if slug != p.FsSlug {
+							continue
+						}
+						emu, e := emulator.New(kind, cfg)
+						if e == nil {
+							for _, s := range emulator.ScanSaves(emu, []string{p.FsSlug}, romNameIndex) {
+								syncedIDs[s.RomID] = true
+							}
+						}
+						break
+					}
+				}
+			}
+			sort.SliceStable(roms, func(i, j int) bool {
+				return syncedIDs[roms[i].ID] && !syncedIDs[roms[j].ID]
+			})
+
 			glib.IdleAdd(func() {
 				if old := contentStack.ChildByName("loading"); old != nil {
 					contentStack.Remove(old)
@@ -260,6 +362,9 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 					row.SetSubtitle(markupEscape(rom.FsName))
 
 					check := gtk.NewCheckButton()
+					if syncedIDs[rom.ID] {
+						check.SetActive(true)
+					}
 					currentChecks[i] = check
 					row.AddPrefix(check)
 					row.SetActivatableWidget(check)
@@ -288,10 +393,9 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	splitView.SetMaxSidebarWidth(280)
 	splitView.SetSidebar(buildSidebar(c, platforms, onSelect, func() {
 		contentPage.SetTitle("Home")
-		syncBtn.SetSensitive(false)
-		syncBtn.SetVisible(false)
+		syncBtn.SetVisible(homeSync != nil)
+		syncBtn.SetSensitive(homeSync != nil)
 		contentStack.SetVisibleChildName("home")
-
 	}, menuBtn))
 	splitView.SetContent(contentPage)
 
