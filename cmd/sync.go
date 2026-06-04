@@ -52,35 +52,26 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Failed to get platforms: %w", err)
 	}
 
-	platformMap := make(map[string]client.Platform)
-	for _, p := range allPlatforms {
-		platformMap[p.FsSlug] = p
-	}
-
-	var allRoms []client.Rom
+	configuredSlugs := make(map[string]bool)
 	for _, cfg := range emuConfigs {
 		for _, slug := range cfg.Platforms {
-			platform, ok := platformMap[slug]
-			if !ok {
-				fmt.Fprintf(os.Stderr, "Platform %q not found in Romm server\n", slug)
-				continue
-			}
-			roms, err := c.GetRomsByPlatform(platform.ID)
-			if err != nil {
-				return fmt.Errorf("Failed to get ROMs for platform %q: %w", slug, err)
-			}
-			allRoms = append(allRoms, roms...)
+			configuredSlugs[slug] = true
 		}
 	}
 
-	if len(allRoms) == 0 {
-		return fmt.Errorf("No ROMs found for configured platforms")
+	var sidebarPlatforms []client.Platform
+	for _, p := range allPlatforms {
+		if configuredSlugs[p.FsSlug] && p.RomCount > 0 {
+			sidebarPlatforms = append(sidebarPlatforms, p)
+		}
 	}
 
-	selected, err := tui.Run(allRoms)
-	if err != nil {
-		return fmt.Errorf("TUI error: %w", err)
+	if len(sidebarPlatforms) == 0 {
+		return fmt.Errorf("No configured platforms found with ROMs")
 	}
+
+	selected, err := tui.Run(c, emuConfigs, sidebarPlatforms)
+
 	if len(selected) == 0 {
 		fmt.Println("No ROMs selected")
 		return nil
