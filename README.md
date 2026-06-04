@@ -22,9 +22,9 @@ Be warned: the sync process currently resolves conflicts automatically, using th
 * [X] ROM downloading
 * [X] Support for native Retroach
 * [X] Support for save files
-* [ ] Conflict resolution for save files
+* [X] Conflict resolution for save files
   * [X] Automatic conflict resolution
-  * [ ] Manual conflict resolution
+  * [X] Manual conflict resolution
 * [X] Support for more Retroarch variants: flatpak and Retrodeck
 * [X] Support for save states
 * [ ] Standalone emulator support
