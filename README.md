@@ -16,8 +16,6 @@ The current distribution is through a Flatpak, check out the [Releases](https://
 # Status
 ToFromm is currently in development, with a working TUI and a GUI: **only happy path cases tested, expect bugs**
 
-Be warned: the sync process currently resolves conflicts automatically, using the newest version of each file. This can lead to unexpected save loss if you have modified a file locally and are syncing with a version from the server.
-
 # Roadmap
 * [X] ROM downloading
 * [X] Support for native Retroach
