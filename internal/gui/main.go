@@ -197,9 +197,15 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	menuBtn.SetVAlign(gtk.AlignCenter)
 
 	m := gio.NewMenu()
+	m.Append("Preferences", "tofromm.preferences")
 	m.Append("Emulator Configuration", "tofromm.emulator-config")
 	m.Append("About", "tofromm.about")
 	menuBtn.SetMenuModel(m)
+
+	prefsAction := gio.NewSimpleAction("preferences", nil)
+	prefsAction.ConnectActivate(func(_ *glib.Variant) {
+		nav.Push(newPreferencesPage(nav))
+	})
 
 	emuAction := gio.NewSimpleAction("emulator-config", nil)
 	emuAction.ConnectActivate(func(_ *glib.Variant) {
@@ -211,7 +217,7 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 		d := adw.NewAboutDialog()
 		d.SetApplicationName("Tofromm")
 		d.SetApplicationIcon(appID)
-		d.SetVersion("0.7")
+		d.SetVersion("0.8")
 		d.SetDeveloperName("bastianvv")
 		d.SetDevelopers([]string{"bastianvv"})
 		d.SetComments("Sync ROMs and saves between your Linux machine and a ROMM server.")
@@ -225,6 +231,7 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	ag := gio.NewSimpleActionGroup()
 	ag.Insert(emuAction)
 	ag.Insert(aboutAction)
+	ag.Insert(prefsAction)
 
 	contentHeader.PackEnd(syncBtn)
 	contentHeader.PackStart(searchBtn)
@@ -277,6 +284,13 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 					})
 				},
 				OnConflict: func(romName, serverTime, reason string) bool {
+					switch viper.GetString("conflict_resolution") {
+					case "local":
+						return false
+					case "server":
+						return true
+					}
+
 					ch := make(chan bool, 1)
 					glib.IdleAdd(func() {
 						dialog := adw.NewAlertDialog(

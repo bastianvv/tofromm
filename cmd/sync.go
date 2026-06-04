@@ -86,6 +86,14 @@ func runSync(cmd *cobra.Command, args []string) error {
 			fmt.Println(msg)
 		},
 		OnConflict: func(romName, serverTime, reason string) bool {
+			switch viper.GetString("conflict_resolution") {
+			case "local":
+				return false
+			case "server":
+				return true
+			default:
+
+			}
 			fmt.Printf("Conflict for %q - server: %s | reason %s\n", romName, serverTime, reason)
 			fmt.Print("Keep [l]ocal, or [s]erver? ")
 			answer, _ := reader.ReadString('\n')

@@ -302,3 +302,47 @@ func newEmulatorSetupPage(nav *adw.NavigationView, overlay *adw.ToastOverlay, pl
 
 	return adw.NewNavigationPage(toolbar, "Emulator Setup")
 }
+
+func newPreferencesPage(nav *adw.NavigationView) *adw.NavigationPage {
+	conflictValues := []string{"ask", "local", "server"}
+	conflictLabels := []string{"Ask Each Time", "Always Keep Local", "Always Keep Server"}
+
+	model := gtk.NewStringList(conflictLabels)
+	conflictRow := adw.NewComboRow()
+	conflictRow.SetTitle("Conflict Resolution")
+	conflictRow.SetSubtitle("Choose how to resolve save conflicts")
+	conflictRow.SetModel(model)
+
+	current := viper.GetString("conflict_resolution")
+	if current == "" {
+		current = "ask"
+	}
+	for i, v := range conflictValues {
+		if v == current {
+			conflictRow.SetSelected(uint(i))
+			break
+		}
+	}
+
+	conflictRow.Connect("notify::selected", func() {
+		idx := int(conflictRow.Selected())
+		if idx >= 0 && idx < len(conflictValues) {
+			viper.Set("conflict_resolution", conflictValues[idx])
+			appconfig.EnsureDir()
+			viper.WriteConfigAs(appconfig.FilePath())
+		}
+	})
+
+	group := adw.NewPreferencesGroup()
+	group.SetTitle("Sync")
+	group.Add(conflictRow)
+
+	prefsPage := adw.NewPreferencesPage()
+	prefsPage.Add(group)
+
+	toolbar := adw.NewToolbarView()
+	toolbar.AddTopBar(adw.NewHeaderBar())
+	toolbar.SetContent(prefsPage)
+
+	return adw.NewNavigationPage(toolbar, "Preferences")
+}
