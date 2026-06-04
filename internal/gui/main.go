@@ -13,6 +13,7 @@ import (
 	"github.com/bastianvv/tofromm/internal/emulator"
 	syncer "github.com/bastianvv/tofromm/internal/sync"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	pixbuf "github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
 	"github.com/diamondburned/gotk4/pkg/gio/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -108,6 +109,31 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	syncBtn.SetSensitive(false)
 	syncBtn.SetVisible(false)
 
+	var currentSearchEntry *gtk.SearchEntry
+	var currentListBox *gtk.ListBox
+
+	searchBtn := gtk.NewToggleButton()
+	searchBtn.SetIconName("system-search-symbolic")
+	searchBtn.SetVAlign(gtk.AlignCenter)
+	searchBtn.SetSensitive(false)
+	searchBtn.SetVisible(false)
+
+	searchBtn.ConnectToggled(func() {
+		if currentSearchEntry == nil {
+			return
+		}
+		if searchBtn.Active() {
+			currentSearchEntry.SetVisible(true)
+			currentSearchEntry.GrabFocus()
+		} else {
+			currentSearchEntry.SetVisible(false)
+			currentSearchEntry.SetText("")
+			if currentListBox != nil {
+				currentListBox.InvalidateFilter()
+			}
+		}
+	})
+
 	home := buildHomePage(overlay, c, platforms, emuConfigs, func(roms []client.Rom) {
 		homeSync = func() { doSync(roms) }
 		if contentStack.VisibleChildName() == "home" {
@@ -201,15 +227,29 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	ag.Insert(aboutAction)
 
 	contentHeader.PackEnd(syncBtn)
+	contentHeader.PackStart(searchBtn)
 
 	contentToolbar := adw.NewToolbarView()
 	contentToolbar.AddTopBar(contentHeader)
 	contentToolbar.SetContent(contentStack)
 	contentToolbar.AddBottomBar(progressArea)
 
+	keyCtrl := gtk.NewEventControllerKey()
+	keyCtrl.SetPropagationPhase(gtk.PhaseCapture)
+	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, state gdk.ModifierType) bool {
+		if keyval == gdk.KEY_f && state&gdk.ModifierType(4) != 0 {
+			if searchBtn.IsSensitive() {
+				searchBtn.SetActive(!searchBtn.Active())
+				return true
+			}
+		}
+		return false
+	})
+
 	contentPage := adw.NewNavigationPage(contentToolbar, "Home")
 
 	var currentRoms []client.Rom
+	var currentPlatformPage *gtk.Box
 	var currentChecks []*gtk.CheckButton
 	doSync = func(selected []client.Rom) {
 		syncBtn.SetSensitive(false)
@@ -295,7 +335,10 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	onSelect := func(p client.Platform) {
 		contentPage.SetTitle(p.Name)
 		syncBtn.SetSensitive(false)
+		searchBtn.SetSensitive(false)
 		syncBtn.SetVisible(true)
+		searchBtn.SetActive(false)
+		searchBtn.SetVisible(true)
 		currentRoms = nil
 		currentChecks = nil
 
@@ -354,6 +397,29 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 				listBox.SetMarginStart(12)
 				listBox.SetMarginEnd(12)
 
+				searchEntry := gtk.NewSearchEntry()
+				searchEntry.SetPlaceholderText("Search ROMs...")
+				searchEntry.SetMarginTop(6)
+				searchEntry.SetMarginBottom(6)
+				searchEntry.SetMarginStart(12)
+				searchEntry.SetMarginEnd(12)
+				searchEntry.SetVisible(false)
+
+				listBox.SetFilterFunc(func(row *gtk.ListBoxRow) bool {
+					query := strings.ToLower(searchEntry.Text())
+					if query == "" {
+						return true
+					}
+					return strings.Contains(strings.ToLower(row.Name()), query)
+				})
+
+				searchEntry.ConnectSearchChanged(func() {
+					listBox.InvalidateFilter()
+				})
+
+				currentSearchEntry = searchEntry
+				currentListBox = listBox
+
 				currentRoms = roms
 				currentChecks = make([]*gtk.CheckButton, len(roms))
 
@@ -362,6 +428,7 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 					row := adw.NewActionRow()
 					row.SetTitle(markupEscape(rom.DisplayName()))
 					row.SetSubtitle(markupEscape(rom.FsName))
+					row.SetName(strings.ToLower(rom.DisplayName() + " " + rom.FsName))
 
 					check := gtk.NewCheckButton()
 					if syncedIDs[rom.ID] {
@@ -378,12 +445,17 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 				scrolled.SetChild(listBox)
 				scrolled.SetVExpand(true)
 
-				pageName := "platform-" + p.FsSlug
-				if old := contentStack.ChildByName(pageName); old != nil {
-					contentStack.Remove(old)
+				pageBox := gtk.NewBox(gtk.OrientationVertical, 0)
+				pageBox.Append(searchEntry)
+				pageBox.Append(scrolled)
+
+				if currentPlatformPage != nil {
+					contentStack.Remove(currentPlatformPage)
 				}
-				contentStack.AddNamed(scrolled, pageName)
-				contentStack.SetVisibleChildName(pageName)
+				contentStack.AddNamed(pageBox, "platform")
+				contentStack.SetVisibleChildName("platform")
+				searchBtn.SetSensitive(true)
+				currentPlatformPage = pageBox
 				syncBtn.SetSensitive(true)
 			})
 		}()
@@ -397,9 +469,12 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 		contentPage.SetTitle("Home")
 		syncBtn.SetVisible(homeSync != nil)
 		syncBtn.SetSensitive(homeSync != nil)
+		searchBtn.SetVisible(false)
+		searchBtn.SetActive(false)
 		contentStack.SetVisibleChildName("home")
 	}, menuBtn))
 	splitView.SetContent(contentPage)
+	splitView.AddController(keyCtrl)
 
 	return splitView
 }
