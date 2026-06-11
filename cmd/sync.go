@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/bastianvv/tofromm/internal/client"
-	"github.com/bastianvv/tofromm/internal/emulator"
 	syncer "github.com/bastianvv/tofromm/internal/sync"
 	"github.com/bastianvv/tofromm/internal/tui"
 	"github.com/spf13/cobra"
@@ -29,21 +28,9 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("No server configured - Add server to your config.yaml")
 	}
 
-	rawEmulators := viper.GetStringMap("emulators")
-	if len(rawEmulators) == 0 {
-		return fmt.Errorf("No emulators configured - Add emulators to your config.yaml")
-	}
-	emuConfigs := make(map[string]emulator.Config)
-	for kind := range rawEmulators {
-		sub := viper.Sub("emulators." + kind)
-		if sub == nil {
-			continue
-		}
-		var cfg emulator.Config
-		if err := sub.Unmarshal(&cfg); err != nil {
-			return fmt.Errorf("Failed to decode emulator config for %s: %w", kind, err)
-		}
-		emuConfigs[kind] = cfg
+	emuConfigs, err := loadEmuConfigs()
+	if err != nil {
+		return fmt.Errorf("Failed to load emulator configs: %w", err)
 	}
 
 	c := newClientFromConfig()

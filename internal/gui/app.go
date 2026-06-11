@@ -15,7 +15,10 @@ import (
 
 const appID = "io.github.bastianvv.tofromm"
 
-func Run() {
+var serviceFileContent []byte
+
+func Run(serviceFile []byte) {
+	serviceFileContent = serviceFile
 	app := adw.NewApplication(appID, gio.ApplicationFlagsNone)
 	app.Connect("activate", func() {
 		buildWindow(app)

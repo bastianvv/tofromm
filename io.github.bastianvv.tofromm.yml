@@ -13,6 +13,7 @@ finish-args:
   - --socket=wayland
   - --filesystem=home
   - --device=dri
+  - --talk-name=org.freedesktop.Flatpak
 
 build-options:
   append-path: /usr/lib/sdk/golang/bin
@@ -33,6 +34,8 @@ modules:
         /app/share/metainfo/io.github.bastianvv.tofromm.metainfo.xml
       - install -Dm644 packaging/io.github.bastianvv.tofromm.svg
         /app/share/icons/hicolor/scalable/apps/io.github.bastianvv.tofromm.svg
+      - install -Dm644 packaging/io.github.bastianvv.tofromm-daemon.service
+        /app/share/systemd/user/io.github.bastianvv.tofromm-daemon.service
 
     sources:
       - type: dir

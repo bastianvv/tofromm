@@ -18,6 +18,7 @@ type Options struct {
 	OnProgress func(msg string)
 	OnRomStart func(current, total int)
 	OnConflict func(romName, serverTime, reason string) bool
+	SavesOnly  bool
 }
 
 type Result struct {
@@ -187,7 +188,7 @@ func Run(opts Options) (Result, error) {
 		}
 
 		for _, op := range negotiation.Operations {
-			if !selectedRomIDs[op.RomID] {
+			if !opts.SavesOnly && !selectedRomIDs[op.RomID] {
 				continue
 			}
 			rom, ok := romByID[op.RomID]

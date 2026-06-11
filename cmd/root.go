@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/bastianvv/tofromm/internal/client"
+	"github.com/bastianvv/tofromm/internal/emulator"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -47,4 +48,26 @@ func newClientFromConfig() *client.Client {
 		viper.GetString("username"),
 		viper.GetString("password"),
 	)
+}
+
+func loadEmuConfigs() (map[string]emulator.Config, error) {
+	rawEmulators := viper.GetStringMap("emulators")
+	if len(rawEmulators) == 0 {
+		return nil, fmt.Errorf("No emulators configured - Add emulators to your config.yaml")
+	}
+
+	emuConfigs := make(map[string]emulator.Config)
+
+	for kind := range rawEmulators {
+		sub := viper.Sub("emulators." + kind)
+		if sub == nil {
+			continue
+		}
+		var cfg emulator.Config
+		if err := sub.Unmarshal(&cfg); err != nil {
+			return nil, fmt.Errorf("Failed to decode emulator config for %s: %w", kind, err)
+		}
+		emuConfigs[kind] = cfg
+	}
+	return emuConfigs, nil
 }

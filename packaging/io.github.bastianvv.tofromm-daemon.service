@@ -1,0 +1,11 @@
+[Unit]
+Description=Tofromm save sync daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/flatpak run io.github.bastianvv.tofromm daemon
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 
 	"github.com/bastianvv/tofromm/internal/client"
+	"github.com/bastianvv/tofromm/internal/daemon"
 	"github.com/bastianvv/tofromm/internal/emulator"
 	syncer "github.com/bastianvv/tofromm/internal/sync"
 	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
@@ -212,6 +214,29 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 		nav.Push(newEmulatorSetupPage(nav, overlay, allPlatforms))
 	})
 
+	serviceAction := gio.NewSimpleAction("sync-service", nil)
+	serviceAction.ConnectActivate(func(_ *glib.Variant) {
+		if daemon.ServiceInstalled() {
+			t := adw.NewToast("Background sync service is already installed")
+			t.SetTimeout(3)
+			overlay.AddToast(t)
+			return
+		}
+		go func() {
+			err := daemon.InstallService(serviceFileContent)
+			glib.IdleAdd(func() {
+				var t *adw.Toast
+				if err != nil {
+					t = adw.NewToast("Failed to install service: " + err.Error())
+				} else {
+					t = adw.NewToast("Background sync service installed")
+				}
+				t.SetTimeout(4)
+				overlay.AddToast(t)
+			})
+		}()
+	})
+
 	aboutAction := gio.NewSimpleAction("about", nil)
 	aboutAction.ConnectActivate(func(_ *glib.Variant) {
 		d := adw.NewAboutDialog()
@@ -232,6 +257,11 @@ func buildSplitView(nav *adw.NavigationView, overlay *adw.ToastOverlay, c *clien
 	ag.Insert(emuAction)
 	ag.Insert(aboutAction)
 	ag.Insert(prefsAction)
+
+	if _, err := os.Stat("/.flatpak-info"); err == nil {
+		m.Append("Background Sync Service", "tofromm.sync-service")
+		ag.Insert(serviceAction)
+	}
 
 	contentHeader.PackEnd(syncBtn)
 	contentHeader.PackStart(searchBtn)
