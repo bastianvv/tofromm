@@ -187,6 +187,11 @@ func Run(opts Options) (Result, error) {
 			continue
 		}
 
+		negotiatedRomIDs := make(map[int]bool, len(negotiation.Operations))
+		for _, op := range negotiation.Operations {
+			negotiatedRomIDs[op.RomID] = true
+		}
+
 		for _, op := range negotiation.Operations {
 			if !opts.SavesOnly && !selectedRomIDs[op.RomID] {
 				continue
@@ -289,6 +294,51 @@ func Run(opts Options) (Result, error) {
 				completed++
 			case "no_op":
 				opts.OnProgress(fmt.Sprintf("  %s in sync for %q", fileKind, rom.FsName))
+			}
+		}
+
+		for _, rom := range opts.Selected {
+			if negotiatedRomIDs[rom.ID] || !platformSet[rom.PlatformFsSlug] {
+				continue
+			}
+			summary, err := opts.Client.GetSavesSummary(rom.ID)
+			if err != nil || summary.TotalCount == 0 {
+				continue
+			}
+			for _, slot := range summary.Slots {
+				save := slot.Latest
+				ext := filepath.Ext(save.FileName)
+
+				var localPath string
+				if strings.HasPrefix(ext, ".state") {
+					localPath = filepath.Join(emu.StateDir(rom.PlatformFsSlug), save.FileName)
+				} else {
+					localPath = filepath.Join(emu.SaveDir(rom.PlatformFsSlug), save.FileName)
+				}
+
+				if err := emulator.EnsureDir(localPath); err != nil {
+					opts.OnProgress(fmt.Sprintf("  Failed to create dir for %q: %v", save.FileName, err))
+					failed++
+					continue
+				}
+
+				sf, err := os.Create(localPath)
+				if err != nil {
+					opts.OnProgress(fmt.Sprintf("  Failed to create %q: %v", save.FileName, err))
+					failed++
+					continue
+				}
+				if err := opts.Client.DownloadSave(save.ID, sf); err != nil {
+					sf.Close()
+					os.Remove(localPath)
+					opts.OnProgress(fmt.Sprintf("  Failed to download save for %q: %v", rom.FsName, err))
+					failed++
+					continue
+				}
+				sf.Close()
+				opts.Client.ConfirmDownload(save.ID, device.DeviceId)
+				opts.OnProgress(fmt.Sprintf("  Downloaded save for %q", rom.FsName))
+				completed++
 			}
 		}
 
